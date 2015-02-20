@@ -1,5 +1,6 @@
 (ns micro-kanren.core
-  (:refer-clojure :exclude [== disj conj]))
+  (:refer-clojure :only [defrecord defn instance? first rest filter = nil?
+                         list identical? let and fn cons cond inc fn? empty?]))
 
 ;; A VarVal represents a logic variable binding in a substitution, i.e., a
 ;; substitution is a sequence or logic variable bindings.
@@ -15,19 +16,20 @@
 ;; stream (state thunk) where state is a State and thunk is a thunk that
 ;; computes the remainder of states.
 (defrecord State [subst counter])
-(def empty-state (->State (list) 0))
+(def empty-state (->State '() 0))
 
 ;; We represent logic vars using a separate record type instead of as vectors
 ;; as does the original Scheme implementation.
 (defrecord LVar [num])
 (defn lvar? [x] (instance? LVar x))
-(def lvar=? identical?)
+(defn lvar=? [v1 v2]
+  (= (:num v1) (:num v2)))
 
 (defn walk
   [u s]
   (let [pr (and (lvar? u)
                 (first (filter (fn [v] (lvar=? u (:var v))) s)))]
-    (if pr (walk (rest pr) s) u)))
+    (if pr (walk (:val pr) s) u)))
 
 (defn ext-s [x v s]
   (cons (->VarVal x v) s))
@@ -43,7 +45,7 @@
                                         (and s (unify (:val u) (:val v) s)))
       :else (and (= u v) s))))
 
-(def mzero (list))
+(def mzero '())
 
 (defn unit [s-c] (cons s-c mzero))
 
@@ -61,15 +63,15 @@
 
 (defn mplus [$1 $2]
   (cond
-    (empty? $1) $2
     (fn? $1) (fn [] (mplus $2 ($1)))
+    (empty? $1) $2
     :else (cons (first $1) (let [x (mplus (rest $1) $2)]
                              (if (fn? x) (list x) x)))))
 
 (defn bind [$ g]
   (cond
-    (empty? $) mzero
     (fn? $) (fn [] (bind ($) g))
+    (empty? $) mzero
     :else (mplus (g (first $)) (bind (rest $) g))))
 
 (defn disj [g1 g2]

@@ -1,6 +1,11 @@
 (ns micro-kanren.ext
-  (refer-clojure :exclude [==])
+  (:refer-clojure :only [defn defmacro for first vec rest fn fn? seq map take
+                         cond let symbol str count cons list empty? zero? dec
+                         loop < inc conj]
+                  :rename {take clj-take})
   (:require [micro-kanren.core :as c]))
+
+;;# Recovering miniKanren's control operators
 
 (defmacro Zzz
   "Snoozes the given goal `g` by performing the inverse-η-delay."
@@ -37,3 +42,81 @@
                      (fresh ~(vec (rest vars))
                        ~@goals)))
     `(conj+ ~@goals)))
+
+;;# From streams to lists
+
+(defn pull
+  "If `$` is an immature stream, evaluate and pull the result.  Else return
+  `$`."
+  [$]
+  (if (fn? $) (pull ($)) $))
+
+(defn take-all
+  "Lazily pulls all states from stream `$`."
+  [$]
+  (let [$ (pull $)]
+    (if (empty? $)
+      '()
+      (cons (first $) (take-all (rest $))))))
+
+(defn take
+  "Takes the `n` first states from the stream `$`."
+  [n $]
+  (if (zero? n)
+    '()
+    (let [$ (pull $)]
+      (if (empty? $)
+        '()
+        (cons (first $) (take (dec n) (rest $)))))))
+
+;;# Recovering reification
+
+(defn ^:private walk* [v s]
+  (let [v (c/walk v s)]
+    (cond
+      (c/lvar? v) v
+      (c/var-val? v) (c/->VarVal (walk* (:var v) s)
+                                 (walk* (:val v) s))
+      :else v)))
+
+(defn ^:private reify-name [n]
+  (symbol (str "_." n)))
+
+(defn ^:private reify-s [v s]
+  (let [v (c/walk v s)]
+    (cond
+      (c/lvar? v) (let [n (reify-name (count s))]
+                    (cons (c/->VarVal v n) s))
+      (c/var-val? v) (reify-s (:val v) (reify-s (:var v) s))
+      :else s)))
+
+(defn ^:private reify-state-all-vars [s-c]
+  (let [s (:subst s-c)]
+    (loop [n (dec (count s)), r []]
+      (if (< n 0)
+        r
+        (let [v (walk* (c/->LVar n) s)]
+          (recur (dec n) (cons (walk* v (reify-s v '())) r)))))))
+
+(defn mK-reify
+  "Reifies the list of states `s-c*` by reifying each state's substitution
+  wrt. the first variable."
+  [s-c*]
+  (map reify-state-all-vars s-c*))
+
+;;# Recovering the interface to Clojure
+
+(defn call-empty-state [g]
+  (g c/empty-state))
+
+(defmacro run
+  [n vars & gs]
+  `(mK-reify (take ~n (call-empty-state
+                       (fresh ~vars
+                         ~@gs)))))
+
+(defmacro run*
+  [vars & gs]
+  `(mK-reify (take-all (call-empty-state
+                        (fresh ~vars
+                          ~@gs)))))
