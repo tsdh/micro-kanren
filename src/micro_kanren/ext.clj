@@ -1,7 +1,7 @@
 (ns micro-kanren.ext
   (:refer-clojure :only [defn defmacro for first vec rest fn fn? seq map take
                          cond let symbol str count cons list empty? zero? dec
-                         loop < inc conj]
+                         loop < inc conj partial]
                   :rename {take clj-take})
   (:require [micro-kanren.core :as c]))
 
@@ -90,9 +90,9 @@
       (c/binding? v) (reify-s (:val v) (reify-s (:var v) s))
       :else s)))
 
-(defn ^:private reify-state-all-vars [s-c]
+(defn ^:private reify-state-vars [n s-c]
   (let [s (:subst s-c)]
-    (loop [n (dec (count s)), r []]
+    (loop [n (dec n), r []]
       (if (< n 0)
         r
         (let [v (walk* (c/->LVar n) s)]
@@ -100,9 +100,9 @@
 
 (defn mK-reify
   "Reifies the list of states `s-c*` by reifying each state's substitution
-  wrt. the first variable."
-  [s-c*]
-  (map reify-state-all-vars s-c*))
+  wrt. the `n` first variables."
+  [n s-c*]
+  (map (partial reify-state-vars n) s-c*))
 
 ;;# Recovering the interface to Clojure
 
@@ -111,12 +111,12 @@
 
 (defmacro run
   [n vars & gs]
-  `(mK-reify (take ~n (call-empty-state
-                       (fresh ~vars
-                         ~@gs)))))
+  `(mK-reify ~(count vars) (take ~n (call-empty-state
+                                     (fresh ~vars
+                                       ~@gs)))))
 
 (defmacro run*
   [vars & gs]
-  `(mK-reify (take-all (call-empty-state
-                        (fresh ~vars
-                          ~@gs)))))
+  `(mK-reify ~(count vars) (take-all (call-empty-state
+                                      (fresh ~vars
+                                        ~@gs)))))
