@@ -2,12 +2,12 @@
   (:refer-clojure :only [defrecord defn instance? first rest filter = nil?
                          list identical? let and fn cons cond inc fn? empty?]))
 
-;; A VarVal represents a logic variable binding in a substitution, i.e., a
+;; A Binding represents a logic variable binding in a substitution, i.e., a
 ;; substitution is a sequence or logic variable bindings.
-(defrecord VarVal [var val])
-(defn var-val? [x] (instance? VarVal x))
-(defn var-val
-  "Returns the VarVar with LVar with num in substitution s."
+(defrecord Binding [var val])
+(defn binding? [x] (instance? Binding x))
+(defn lvar-binding
+  "Returns the Binding of LVar `num` in substitution s."
   [num s]
   (first (filter #(= num (:num (:var %))) s)))
 
@@ -32,7 +32,7 @@
     (if pr (walk (:val pr) s) u)))
 
 (defn ext-s [x v s]
-  (cons (->VarVal x v) s))
+  (cons (->Binding x v) s))
 
 (defn unify [u v s]
   (let [u (walk u s)
@@ -41,7 +41,7 @@
       (and (lvar? u) (lvar? v) (lvar=? u v)) s
       (lvar? u) (ext-s u v s)
       (lvar? v) (ext-s v u s)
-      (and (var-val? u) (var-val? v)) (let [s (unify (:var u) (:var v) s)]
+      (and (binding? u) (binding? v)) (let [s (unify (:var u) (:var v) s)]
                                         (and s (unify (:val u) (:val v) s)))
       :else (and (= u v) s))))
 

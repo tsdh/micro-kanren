@@ -75,8 +75,8 @@
   (let [v (c/walk v s)]
     (cond
       (c/lvar? v) v
-      (c/var-val? v) (c/->VarVal (walk* (:var v) s)
-                                 (walk* (:val v) s))
+      (c/binding? v) (c/->Binding (walk* (:var v) s)
+                                  (walk* (:val v) s))
       :else v)))
 
 (defn ^:private reify-name [n]
@@ -86,8 +86,8 @@
   (let [v (c/walk v s)]
     (cond
       (c/lvar? v) (let [n (reify-name (count s))]
-                    (cons (c/->VarVal v n) s))
-      (c/var-val? v) (reify-s (:val v) (reify-s (:var v) s))
+                    (cons (c/->Binding v n) s))
+      (c/binding? v) (reify-s (:val v) (reify-s (:var v) s))
       :else s)))
 
 (defn ^:private reify-state-all-vars [s-c]

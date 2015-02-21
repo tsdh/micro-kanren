@@ -10,7 +10,7 @@
           subst (:subst state)]
       (is (= 1 (:counter state)))
       (is (= 1 (count subst)))
-      (is (= 5 (:val (var-val 0 subst)))))))
+      (is (= 5 (:val (lvar-binding 0 subst)))))))
 
 (def a-and-b
   (conj
@@ -28,10 +28,10 @@
       (is (= 2 (:counter state2)))
       (is (= 2 (count subst1)))
       (is (= 2 (count subst2)))
-      (is (= 7 (:val (var-val 0 subst1))))
-      (is (= 5 (:val (var-val 1 subst1))))
-      (is (= 7 (:val (var-val 0 subst2))))
-      (is (= 6 (:val (var-val 1 subst2)))))))
+      (is (= 7 (:val (lvar-binding 0 subst1))))
+      (is (= 5 (:val (lvar-binding 1 subst1))))
+      (is (= 7 (:val (lvar-binding 0 subst2))))
+      (is (= 6 (:val (lvar-binding 1 subst2)))))))
 
 (defn fives [x]
   (disj (== x 5)
@@ -46,7 +46,7 @@
           subst1 (:subst state1)
           state2 (second r)]
       (is (= 1 (count subst1)))
-      (is (= 5 (:val (var-val 0 subst1))))
+      (is (= 5 (:val (lvar-binding 0 subst1))))
       (is (fn? state2))
       (when (< i 10)
         (recur (state2) (inc i))))))
