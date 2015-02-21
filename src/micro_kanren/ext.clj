@@ -1,7 +1,8 @@
 (ns micro-kanren.ext
   (:refer-clojure :only [defn defmacro for first vec rest fn fn? seq map take
                          cond let symbol str count cons list empty? zero? dec
-                         loop < inc conj partial vector? mapv seq?]
+                         loop < inc conj partial vector? mapv seq? zipmap
+                         map? vals keys set? into]
                   :rename {take clj-take})
   (:require [micro-kanren.core :as c]))
 
@@ -72,13 +73,16 @@
 ;;# Recovering reification
 
 (defn ^:private walk* [v s]
-  (let [v (c/walk v s)]
+  (let [v (c/walk v s)
+        w* #(walk* % s)]
     (cond
       (c/lvar? v) v
-      (c/binding? v) (c/->Binding (walk* (:var v) s)
-                                  (walk* (:val v) s))
-      (vector? v) (mapv #(walk* % s) v)
-      (seq? v) (map #(walk* % s) v)
+      (c/binding? v) (c/->Binding (w* (:var v)) (w* (:val v)))
+      (vector? v) (mapv w* v)
+      (seq? v) (map w* v)
+      (map? v) (zipmap (map w* (vals v))
+                       (map w* (keys v)))
+      (set? v) (into #{} (map w* v))
       :else v)))
 
 (defn ^:private reify-name [n]
